@@ -69,6 +69,57 @@ boost::filesystem::path input_path;
 bool preciseVectorData = false;
 std::unordered_map<std::string, WMODoodadData> WmoDoodads;
 
+
+struct DB2LocalFileSource : public DB2FileSource
+{
+    DB2LocalFileSource(const std::string& fileName)
+        : _fileName(fileName), _fileStream(fileName, std::ios::in | std::ios::binary)
+    {
+    }
+
+    bool IsOpen() const override
+    {
+        return _fileStream.is_open();
+    }
+
+    bool Read(void* buffer, std::size_t numBytes) override
+    {
+        if (!IsOpen())
+            return false;
+
+        _fileStream.read(reinterpret_cast<char*>(buffer), numBytes);
+        return static_cast<std::size_t>(_fileStream.gcount()) == numBytes;
+    }
+
+    std::size_t GetPosition() const override
+    {
+        if (!IsOpen())
+            return 0;
+        return static_cast<std::size_t>(_fileStream.tellg());
+    }
+
+    std::size_t GetFileSize() const override
+    {
+        if (!IsOpen())
+            return 0;
+
+        auto currentPos = _fileStream.tellg();
+        _fileStream.seekg(0, std::ios::end);
+        std::size_t fileSize = static_cast<std::size_t>(_fileStream.tellg());
+        _fileStream.seekg(currentPos);
+        return fileSize;
+    }
+
+    char const* GetFileName() const override
+    {
+        return _fileName.c_str();
+    }
+
+private:
+    std::string _fileName;
+    mutable std::ifstream _fileStream;
+};
+
 // Constants
 
 const char* szWorkDirWmo = "./Buildings";
@@ -470,7 +521,8 @@ int main(int argc, char ** argv)
     {
         printf("Read Map.dbc file... ");
 
-        DB2CascFileSource source(CascStorage, "DBFilesClient\\Map.db2");
+        //DB2CascFileSource source(CascStorage, "DBFilesClient\\Map.db2");
+        DB2LocalFileSource source("./DBFilesClient/MapTest.db2");
         DB2FileLoader db2;
         if (!db2.Load(&source, MapLoadInfo::Instance()))
         {

@@ -41,6 +41,56 @@
 
 CASC::StorageHandle CascStorage;
 
+struct DB2LocalFileSource : public DB2FileSource
+{
+    DB2LocalFileSource(const std::string& fileName)
+        : _fileName(fileName), _fileStream(fileName, std::ios::in | std::ios::binary)
+    {
+    }
+
+    bool IsOpen() const override
+    {
+        return _fileStream.is_open();
+    }
+
+    bool Read(void* buffer, std::size_t numBytes) override
+    {
+        if (!IsOpen())
+            return false;
+
+        _fileStream.read(reinterpret_cast<char*>(buffer), numBytes);
+        return static_cast<std::size_t>(_fileStream.gcount()) == numBytes;
+    }
+
+    std::size_t GetPosition() const override
+    {
+        if (!IsOpen())
+            return 0;
+        return static_cast<std::size_t>(_fileStream.tellg());
+    }
+
+    std::size_t GetFileSize() const override
+    {
+        if (!IsOpen())
+            return 0;
+
+        auto currentPos = _fileStream.tellg();
+        _fileStream.seekg(0, std::ios::end);
+        std::size_t fileSize = static_cast<std::size_t>(_fileStream.tellg());
+        _fileStream.seekg(currentPos);
+        return fileSize;
+    }
+
+    char const* GetFileName() const override
+    {
+        return _fileName.c_str();
+    }
+
+private:
+    std::string _fileName;
+    mutable std::ifstream _fileStream;
+};
+
 typedef struct
 {
     char name[64];
@@ -222,7 +272,8 @@ void ReadMapDBC()
 {
     printf("Read Map.db2 file...\n");
 
-    DB2CascFileSource source(CascStorage, "DBFilesClient\\Map.db2");
+    /*DB2CascFileSource source(CascStorage, "DBFilesClient\\Map.db2");*/
+    DB2LocalFileSource source("./DBFilesClient/Map.db2");
     DB2FileLoader db2;
     if (!db2.Load(&source, MapLoadInfo::Instance()))
     {
@@ -500,8 +551,22 @@ bool ConvertADT(std::string const& inputPath, std::string const& outputPath, int
 {
     ChunkedFile adt;
 
-    if (!adt.loadFile(CascStorage, inputPath))
-        return false;
+    if (inputPath.find("Storms_Reach") != std::string::npos)
+    {
+        fprintf(stderr, "Found a storms reach map!");
+        // Load from local filesystem
+        if (!adt.loadFileLocal(inputPath))
+            return false;
+    }
+    else
+    {
+        // Load using CASC as before
+        if (!adt.loadFile(CascStorage, inputPath))
+            return false;
+    }
+
+    //if (!adt.loadFile(CascStorage, inputPath))
+    //    return false;
 
     // Prepare map header
     map_fileheader map;
@@ -1091,8 +1156,24 @@ void ExtractMaps(uint32 build)
         // Loadup map grid data
         storagePath = Trinity::StringFormat("World\\Maps\\%s\\%s.wdt", map_ids[z].name, map_ids[z].name);
         ChunkedFile wdt;
-        if (!wdt.loadFile(CascStorage, storagePath, false))
-            continue;
+        /*if (!wdt.loadFile(CascStorage, storagePath, false))
+            continue;*/
+
+            // Check if we need to load from local filesystem
+        if (storagePath.find("Storms_Reach") != std::string::npos)
+        {
+            fprintf(stderr, "lOOKING FOR STORMS REACH WDT!");
+            // Load locally
+            if (!wdt.loadFileLocal(storagePath, false))
+                
+                continue;
+        }
+        else
+        {
+            // Load from CASC as before
+            if (!wdt.loadFile(CascStorage, storagePath, false))
+                continue;
+        }
 
         FileChunk* chunk = wdt.GetChunk("MAIN");
         for (uint32 y = 0; y < WDT_MAP_SIZE; ++y)

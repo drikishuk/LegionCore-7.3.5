@@ -1640,7 +1640,7 @@ void Player::Update(uint32 p_time)
     {
         if (Map* map = GetMap())
         {
-			if (sWorld->getBoolConfig(CONFIG_PLAYER_ALLOW_PVP_TALENTS_ALL_THE_TIME) && getLevel() >= 110)
+			if (sWorld->getBoolConfig(CONFIG_PLAYER_ALLOW_PVP_TALENTS_ALL_THE_TIME) && getLevel() >= 10)
 			{
 				if (!HasPvpRulesEnabled())
 					EnablePvpRules(false);
@@ -3930,12 +3930,12 @@ void Player::GiveLevel(uint8 level)
 void Player::InitTalentForLevel()
 {
     uint8 level = getLevel();
-    if (level < 10)
+    if (level < 7)
         ResetTalentSpecialization();
 
     uint8 talentPointsForLevel = CalculateTalentsPoints();
 
-    if (level < 15)
+    if (level < 2)
         ResetTalents(true);
     else
     {
@@ -4050,7 +4050,7 @@ void Player::RemoveAllPvPTalent(bool isDelete)
 
 void Player::TogglePvpTalents(bool enable)
 {
-    if (getLevel() < 110 || (GetMap()->IsDungeon() && enable && !sWorld->getBoolConfig(CONFIG_PLAYER_ALLOW_PVP_TALENTS_ALL_THE_TIME)))
+    if (getLevel() < 10 || (GetMap()->IsDungeon() && enable && !sWorld->getBoolConfig(CONFIG_PLAYER_ALLOW_PVP_TALENTS_ALL_THE_TIME)))
         return;
 
     for (auto const& v : *GetPvPTalentMap(GetActiveTalentGroup()))
@@ -4186,7 +4186,7 @@ void Player::EnablePvpRules(bool recalcItems /*= true*/)
 void Player::DisablePvpRules(bool recalcItems /*= true*/, bool checkZone/* = true*/)
 {
     if ((checkZone && IsAreaThatActivatesPvpTalents(GetCurrentAreaID())) || 
-		(sWorld->getBoolConfig(CONFIG_PLAYER_ALLOW_PVP_TALENTS_ALL_THE_TIME) && getLevel() >= 110))
+		(sWorld->getBoolConfig(CONFIG_PLAYER_ALLOW_PVP_TALENTS_ALL_THE_TIME) && getLevel() >= 10))
         return;
 
     // for (std::pair<ObjectGuid, uint32> ArtIt : AllArtifacts)
@@ -4230,7 +4230,7 @@ bool Player::HasPvpRulesEnabled()
         if (v.second != PLAYERSPELL_REMOVED && HasSpell(v.first))
             return true;
 
-    if (HasAura(SPELL_PVP_RULES_ENABLED) && getLevel() == 110)
+    if (HasAura(SPELL_PVP_RULES_ENABLED) && getLevel() >= 10)
         return true;
 
     return false;
@@ -8970,7 +8970,7 @@ void Player::UpdateHonorFields(bool loading /*= false*/)
 {
     if (loading)
     {
-        if (getLevel() == MAX_LEVEL)
+        if (getLevel() >= 10)
         {
             if (GtHonorLevelEntry const* data = sHonorLevelGameTable.GetRow(m_honorInfo.NextHonorLevel))
             {
@@ -9207,7 +9207,7 @@ bool Player::RewardHonor(Unit* victim, uint32 groupsize, int32 honor, bool pvpto
     SendDirectMessage(credit.Write());
 
     // add honor points
-    if (getLevel() >= MAX_LEVEL)
+    if (getLevel() >= HONOR_START_LEVEL)
         CurrencyChanged(CURRENCY_TYPE_HONOR_POINTS, int32(honor));
 
     if (InBattleground() && honor > 0)
@@ -9679,7 +9679,7 @@ void Player::ModifyCurrency(uint32 id, int32 count, bool sendInChat/* = false*/,
     if (!currency)
         return;
 
-    if (id == CURRENCY_TYPE_HONOR_POINTS && getLevel() < MAX_LEVEL)
+    if (id == CURRENCY_TYPE_HONOR_POINTS && getLevel() < HONOR_START_LEVEL)
         return;
 
     if (!ignoreMultipliers)
@@ -10079,7 +10079,7 @@ void Player::UpdateArea(uint32 newArea)
 
     UpdateAreaDependentAuras(newArea);
 
-	if (sWorld->getBoolConfig(CONFIG_PLAYER_ALLOW_PVP_TALENTS_ALL_THE_TIME) && getLevel() >= 110)
+	if (sWorld->getBoolConfig(CONFIG_PLAYER_ALLOW_PVP_TALENTS_ALL_THE_TIME) && getLevel() >= 10)
 	{
 		if (!HasPvpRulesEnabled())
 			EnablePvpRules(false);
@@ -33209,7 +33209,7 @@ bool Player::LearnPvpTalent(uint16 talentID)
     }
 
 	// Remove Hunter's Wild Protector buff if pet is active and player has changed pvp talent
-	if(GetSpecializationId() == SPEC_HUNTER_BEASTMASTER && GetEffectiveLevel() >= 110)
+	if(GetSpecializationId() == SPEC_HUNTER_BEASTMASTER && GetEffectiveLevel() >= 10)
 		if (!HasPvPTalent(204190))
 			if (Pet* pet = GetPet())
 				pet->RemoveAurasDueToSpell(204358);
@@ -33229,7 +33229,7 @@ void Player::ResetTalentSpecialization()
     RemoveAllPvPTalent();
     RemoveSpecializationSpells();
 
-    if (getLevel() < 10)
+    if (getLevel() < 2)
     {
         ChrSpecializationEntry const* defaultSpec = ASSERT_NOTNULL(sDB2Manager.GetDefaultChrSpecializationForClass(getClass()));
         SetPrimarySpecialization(defaultSpec->ID);
@@ -35210,8 +35210,8 @@ void Player::_SaveHonor()
         }
         m_saveKills = false;
     }
-
-    if (getLevel() >= MAX_LEVEL)
+    // Nightfall: Fix honor level
+    if (getLevel() >= HONOR_START_LEVEL)
     {
         stmt = CharacterDatabase.GetPreparedStatement(CHAR_REP_HONOR_INFO);
         stmt->setUInt64(0, lowGuid);

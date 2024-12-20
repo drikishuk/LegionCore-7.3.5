@@ -54,6 +54,7 @@ struct DBCPosition4D
 static uint16 const STRONG_MAX_LEVEL = 255;
 static uint16 const DEFAULT_MAX_SKILL_VALUE = 800;
 static uint8 const MAX_LEVEL = 110; // client supported max level for player/pets/etc. Avoid overflow or client stability affected. also see GT_MAX_LEVEL define
+static uint8 const HONOR_START_LEVEL = 10;
 static uint8 const CREATURE_MAX_LEVEL = 113;
 
 enum AreaTeams

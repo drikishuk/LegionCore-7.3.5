@@ -20,6 +20,10 @@
 
 #include "loadlib.h"
 #include <CascLib.h>
+#include <fstream>
+#include <string>
+#include <cstdint> // If uint8/uint32 are not defined elsewhere
+#include <iostream> // For std::ios if needed
 
 u_map_fcc MverMagic = { { 'R','E','V','M' } };
 
@@ -58,6 +62,50 @@ bool ChunkedFile::loadFile(CASC::StorageHandle const& mpq, std::string const& fi
     printf("Error loading %s\n", fileName.c_str());
     free();
 
+    return false;
+}
+
+bool ChunkedFile::loadFileLocal(std::string const& fileName, bool log)
+{
+    free(); // Clear any existing data
+    std::ifstream file(fileName, std::ios::binary | std::ios::ate);
+    if (!file.is_open())
+    {
+        if (log)
+            printf("Failed to open local file: %s\n", fileName.c_str());
+        return false;
+    }
+
+    // Get file size
+    std::streampos fileSize = file.tellg();
+    if (fileSize <= 0)
+    {
+        if (log)
+            printf("Invalid file size for: %s\n", fileName.c_str());
+        return false;
+    }
+
+    data_size = static_cast<std::size_t>(fileSize);
+    data = new uint8[data_size]; // allocate memory
+
+    // Read file from the beginning
+    file.seekg(0, std::ios::beg);
+    if (!file.read(reinterpret_cast<char*>(data), data_size))
+    {
+        if (log)
+            printf("Failed to read local file: %s\n", fileName.c_str());
+        free();
+        return false;
+    }
+
+    // Parse and prepare the data just like the CASC version
+    parseChunks();
+    if (prepareLoadedData())
+        return true;
+
+    // If something went wrong during parse/prepare
+    printf("Error loading %s\n", fileName.c_str());
+    free();
     return false;
 }
 
